@@ -38,6 +38,7 @@ behind them.
 - **Events and timeline** — workshops, competitions, and past initiatives.
 - **Our team** — executive and standing committees, with member profiles.
 - **Previous officers** — a dedicated page for past committees.
+- **Blog** — event highlights, technical articles, and community updates.
 - **Contact** — branch contact details and social channels.
 
 The site uses repository-managed content and local media. There is no CMS,
@@ -110,6 +111,7 @@ Most recurring content changes belong in [`utils/index.js`](utils/index.js).
 | Past events | `pastEvents` in `utils/index.js` |
 | Current committees | `executiveCommittee` and `standingCommittee` in `utils/index.js` |
 | Previous officers | `prevOfficers` in `utils/index.js` |
+| Blog posts | `blogs` in `utils/index.js` |
 | Contact details and social links | `contactInfo` and `contactExCom` in `utils/index.js` |
 | Page title, description, and sharing image | `metadata` in `app/layout.jsx` |
 | Brand colors and shared styles | `styles/globals.css` |
@@ -136,8 +138,10 @@ app/
   layout.jsx                 Shared layout, font, and site metadata
   page.jsx                   Homepage composition
   previous-officers/page.jsx Previous officers page
+  blog/page.jsx              Blog listing page
+  blog/[slug]/page.jsx       Blog article page
 components/                  Website sections and navigation
-  helpers/                   Team cards, animations, and transitions
+  helpers/                   Team cards, blog cards, animations, and transitions
 utils/
   index.js                   Content, committee data, and contact details
   lenis.js                   Client-side smooth-scrolling export
@@ -179,7 +183,7 @@ paths against the branch's approved information.
 Before merging:
 
 - Run `npm run lint` and `npm run build`.
-- Preview the exported homepage and `/previous-officers/` page.
+- Preview the exported homepage, `/previous-officers/`, `/blog/`, and one blog article.
 - Check desktop and mobile navigation, portrait crops, and scrolling behavior.
 - After deployment, check the live routes, media, and social-sharing metadata.
 
@@ -202,3 +206,33 @@ Chrome 111+, or Firefox 128+; consider browser support when changing the stack.
 
 For branch inquiries, email [ucscieee@gmail.com](mailto:ucscieee@gmail.com) or
 visit [ucscieee.lk](https://ucscieee.lk).
+
+## Implementation Notes
+
+### Design: matching the existing site
+
+- **Same design tokens.** Introduced no new colors or fonts. The blog uses the theme colors from `styles/globals.css` (`primary-blue`, `secondary-blue`, `primary-white`) and inherits the Raveo font from the root layout.
+- **Same shell.** The blog routes live under `app/`, so they automatically get the existing navbar, footer, Lenis smooth scrolling, preloader and page-transition overlay. I only added one `blog` entry to `navbarLinks`, which updates the desktop and mobile menus together.
+- **Same visual language.** The pages follow the provided design reference: uppercase letter-spaced labels, large tight headings, rounded cards with soft shadows, and faint blurred blue gradients.
+- **Same conventions.** Content is a `blogs` array in `utils/index.js` (like `pastEvents`). The reusable card sits in `components/helpers/` (like `TeamMembers`). Pages use `.jsx`. URLs use trailing slashes to match `trailingSlash: true`.
+- **One shared-component fix.** `TransitionLink` now sends `#section` links to the homepage when they are clicked from another page, so the navbar works on `/blog/`. Behavior on the homepage is unchanged.
+
+### Performance: large images and long titles
+
+**Images**
+- Next.js image optimization is disabled for this static export, so I compressed the photo before committing it (about 300 KB).
+- Every image sits in a container with a fixed aspect ratio (`aspect-[4/3]` on small cards, `aspect-[3/4]` for the article image) and uses `fill` with `object-cover`. A very large or oddly shaped photo is cropped to fit. It cannot overflow the page or cause layout shift.
+- `sizes` tells the browser how wide each image renders. Listing images lazy-load, and only the article's main image uses `priority`.
+
+**Long titles**
+- Cards clamp titles to 4 lines (`line-clamp-4`) and descriptions to 3 lines. `break-words` stops an unbroken string from overflowing.
+- The article page shows the full title with `break-words`, a `max-w-6xl` limit, and responsive sizes (`text-4xl`, then `sm:text-6xl`, then `lg:text-[5.8rem]`).
+- Article text is limited to a readable column (`max-w-[47rem]`).
+- I checked long titles during development using a temporary placeholder post.
+
+**Build-time work**
+- Blog pages and `BlogCard` are server components with no `"use client"`. `generateStaticParams` pre-renders every article to static HTML, and no new dependencies were added. Unknown slugs return a 404 (`dynamicParams = false`).
+
+### Improvements: one feature I would add next
+
+**Search and category filter on the listing page.** Each post already has a `category`, so a small client component (`useState` plus `filter`) could let readers search titles and descriptions and filter by category without changing the data model. This matters once the blog has more than a handful of posts. Pagination ("Load more") would be the follow-up for a very long list.
