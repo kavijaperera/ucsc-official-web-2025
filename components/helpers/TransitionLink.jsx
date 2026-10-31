@@ -10,10 +10,13 @@ const TransitionLink = ({ children, href, className, props }) => {
   const router = useRouter();
   const pathname = usePathname();
 
+  // On other pages, "#section" links should go to the homepage section.
+  const target = href.startsWith("#") && pathname !== "/" ? `/${href}` : href;
+
   const timeline = gsap.timeline();
 
   const handleAnimation = () => {
-    if (pathname != href) {
+    if (pathname != target) {
       document.body.classList.add("no-scroll"); //Disable scrolling
 
       timeline.fromTo(
@@ -44,8 +47,8 @@ const TransitionLink = ({ children, href, className, props }) => {
   const handleTransition = async (e) => {
     e.preventDefault();
 
-    if (href.startsWith("#")) {
-      const targetElement = document.querySelector(href);
+    if (target.startsWith("#")) {
+      const targetElement = document.querySelector(target);
 
       if (targetElement) {
         // Scroll to the element instead of reloading
@@ -55,7 +58,13 @@ const TransitionLink = ({ children, href, className, props }) => {
       // Regular page navigation
       handleAnimation();
       await sleep(1000);
-      router.push(href);
+      router.push(target);
+
+      // Coming from another page: scroll to the section once the page has changed.
+      if (target !== href) {
+        await sleep(1200);
+        document.getElementById(target.split("#")[1])?.scrollIntoView();
+      }
     }
   };
 
@@ -63,7 +72,7 @@ const TransitionLink = ({ children, href, className, props }) => {
     <>
       <Link
         onClick={handleTransition}
-        href={href}
+        href={target}
         prefetch={false}
         className={className}
         {...props}
